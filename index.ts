@@ -3,9 +3,18 @@ import {
     IProvider,
     ProviderType,
     WalletClient,
-    WebsocketEvent,
 } from "@massalabs/massa-web3";
+import WebSocket from "ws";
 import * as dotenv from "dotenv";
+import {
+    WS_RPC_REQUEST_METHOD_BASE,
+    WS_RPC_REQUEST_METHOD_NAME,
+    generateFullRequestName,
+} from "./WsRpcMethods";
+import {
+    IFilledBlockInfo,
+    ISubscribedFullBlocksMessage,
+} from "@massalabs/massa-web3/dist/interfaces/ISubscribedFullBlocksMessage";
 
 const providers: IProvider[] = [
     {
@@ -39,37 +48,40 @@ const web3Client = await ClientFactory.createCustomClient(
     baseAccount
 );
 
-const wsClient = web3Client.ws();
+const wsClient = new WebSocket("ws://64.226.72.133:33036");
 if (!wsClient) console.log("WS not available");
 else {
-    wsClient.on(WebsocketEvent.ON_CLOSED, () => {
+    wsClient.onclose = () => {
         console.log("ws closed");
-    });
+    };
 
-    wsClient.on(WebsocketEvent.ON_CLOSING, () => {
-        console.log("ws closing");
-    });
+    wsClient.onerror = (error) => {
+        console.error("ws error", error);
+    };
 
-    wsClient.on(WebsocketEvent.ON_CONNECTING, () => {
-        console.log("ws connecting");
-    });
+    wsClient.onmessage = (message) => {
+        const data = JSON.parse(message.data as string);
 
-    wsClient.on(WebsocketEvent.ON_OPEN, () => {
+        if ("params" in data) {
+            const res = data.params.result as ISubscribedFullBlocksMessage;
+            console.log(res.header.id, res.operations.length);
+        }
+    };
+
+    wsClient.onopen = () => {
         console.log("ws open");
-    });
+        wsClient.send(
+            JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: generateFullRequestName(
+                    WS_RPC_REQUEST_METHOD_BASE.SUBSCRIBE,
+                    WS_RPC_REQUEST_METHOD_NAME.NEW_FILLED_BLOCKS
+                ),
+                params: [],
+            })
+        );
+    };
 
-    wsClient.on(WebsocketEvent.ON_PING, () => {
-        console.log("ws ping", Date.now());
-    });
-
-    wsClient.on(WebsocketEvent.ON_ERROR, (errorMessage) => {
-        console.error("ws error", errorMessage);
-    });
-
-    await wsClient.connect();
     console.log("Connected to WS");
-
-    wsClient.subscribeFilledBlocks(async (block) => {
-        console.log(block.header.id, block.operations.length);
-    });
 }
