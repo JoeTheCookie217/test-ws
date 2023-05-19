@@ -11,12 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@massalabs/massa-web3": "^1.16.1",
     "dotenv": "^16.0.3",
-    "websocket": "^1.0.34",
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.5.4",
     "nodemon": "^2.0.22",
     "ts-node": "^10.9.1"
   }
